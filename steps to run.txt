@@ -1,0 +1,123 @@
+# Real-Time Traffic Management System
+# Roadmap to run on Big Data VM (Oracle VM VirtualBox)
+
+----------------------------------------------------
+Step 1: Setup Oracle VM VirtualBox
+----------------------------------------------------
+- Download and install Oracle VM VirtualBox from:
+  https://www.virtualbox.org/wiki/Downloads
+
+- Create a new VM:
+  - OS: Ubuntu 20.04 LTS or later recommended
+  - RAM: 8GB or more
+  - CPU: 4 cores or more
+  - Disk: 100GB or more
+  - Network: NAT or Bridged Adapter (for internet)
+
+- Install the OS if starting fresh.
+
+----------------------------------------------------
+Step 2: Login to VM & install basic tools
+----------------------------------------------------
+sudo apt update && sudo apt upgrade -y
+
+# Install Java (OpenJDK 11), Python3, pip, wget, curl, nano, git
+sudo apt install -y openjdk-11-jdk python3 python3-pip wget curl nano git
+
+----------------------------------------------------
+Step 3: Download & install Hadoop, Kafka, Spark
+----------------------------------------------------
+# Download Apache Kafka
+wget https://downloads.apache.org/kafka/3.6.0/kafka_2.13-3.6.0.tgz
+tar -xzf kafka_2.13-3.6.0.tgz
+mv kafka_2.13-3.6.0 ~/kafka
+
+# Download Apache Spark (built for Hadoop 3)
+wget https://downloads.apache.org/spark/spark-3.5.0-bin-hadoop3.tgz
+tar -xzf spark-3.5.0-bin-hadoop3.tgz
+mv spark-3.5.0-bin-hadoop3 ~/spark
+
+# Download Apache Hadoop
+wget https://downloads.apache.org/hadoop/common/hadoop-3.3.6/hadoop-3.3.6.tar.gz
+tar -xzf hadoop-3.3.6.tar.gz
+mv hadoop-3.3.6 ~/hadoop
+
+----------------------------------------------------
+Step 4: Configure Hadoop HDFS
+----------------------------------------------------
+# Format Hadoop NameNode (only first time)
+~/hadoop/bin/hdfs namenode -format
+
+# Start HDFS daemons
+~/hadoop/sbin/start-dfs.sh
+
+# Verify HDFS is running
+jps  # Should show NameNode, DataNode etc.
+hdfs dfs -ls /
+
+----------------------------------------------------
+Step 5: Start Kafka & Zookeeper
+----------------------------------------------------
+# Start Zookeeper in background
+~/kafka/bin/zookeeper-server-start.sh -daemon ~/kafka/config/zookeeper.properties
+
+# Start Kafka broker in background
+~/kafka/bin/kafka-server-start.sh -daemon ~/kafka/config/server.properties
+
+# Create Kafka topic for traffic data
+~/kafka/bin/kafka-topics.sh --create --topic traffic_data --bootstrap-server localhost:9092 --partitions 1 --replication-factor 1
+
+----------------------------------------------------
+Step 6: Upload project files to VM
+----------------------------------------------------
+# From your local machine, run:
+scp -r traffic_project your-user@your-vm-ip:~/
+
+# Or use git clone inside VM if project is on GitHub
+
+# Edit traffic_producer.py and add your Google Maps API key:
+nano traffic_project/traffic_producer.py
+
+# Replace 'YOUR_GOOGLE_MAPS_API_KEY' with your actual key
+
+----------------------------------------------------
+Step 7: Install Python dependencies
+----------------------------------------------------
+pip3 install kafka-python requests pyspark
+
+----------------------------------------------------
+Step 8: Run Traffic Producer and Spark Streaming
+----------------------------------------------------
+# Run the producer script to send data to Kafka
+python3 traffic_project/traffic_producer.py
+
+# In a new terminal, run Spark Structured Streaming job
+~/spark/bin/spark-submit --master local[*] traffic_project/spark_traffic_consumer.py
+
+----------------------------------------------------
+Step 9: Verify data pipeline
+----------------------------------------------------
+# Check Kafka messages (optional)
+~/kafka/bin/kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic traffic_data --from-beginning
+
+# Check aggregated data stored in HDFS
+hdfs dfs -ls /traffic/aggregated
+
+----------------------------------------------------
+Step 10: Optional Automation
+----------------------------------------------------
+# You can create a run_all.sh script to start all services and scripts automatically.
+
+# Use screen or tmux to manage multiple long-running processes.
+
+----------------------------------------------------
+Notes:
+----------------------------------------------------
+- Ensure VM network allows internet access to call Google Maps APIs.
+- Adjust firewall rules if needed for Kafka ports (default 9092).
+- Monitor JVM processes with 'jps' and system usage with 'htop'.
+- For production, consider securing Kafka and Hadoop services.
+
+----------------------------------------------------
+End of roadmap
+----------------------------------------------------
